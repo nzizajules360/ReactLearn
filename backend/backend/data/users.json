@@ -1,0 +1,15 @@
+[
+  {
+    "id": "1761736356806",
+    "name": "Nziza Jules",
+    "email": "nzizajules202@gmail.com",
+    "passwordHash": "$2b$10$8TKXcsExQJONJDS9uzkEk.pwPffluoF.wyTkM5AqN0M1dYFoGTnoe",
+    "role": "user",
+    "profile": {
+      "phone": "",
+      "location": "",
+      "department": "",
+      "bio": ""
+    }
+  }
+]
