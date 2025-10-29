@@ -108,7 +108,7 @@ function Dashboard() {
                 Logout
               </button>
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                ST
+                ECS
               </div>
             </div>
           </div>
@@ -157,7 +157,7 @@ function Dashboard() {
                     <h3 className="text-lg font-semibold text-emerald-900">{metric.name}</h3>
                     {getTrendIcon(metric.trend)}
                   </div>
-                  <div className="flex items-end justify-between">
+                  <div className="flex items-end justify-between filter backdrop-blur-sm">
                     <div>
                       <p className="text-3xl font-bold text-emerald-900">{metric.value}</p>
                       <p className={`text-sm ${metric.change > 0 ? 'text-lime-600' : 'text-emerald-600'}`}>

@@ -3,6 +3,7 @@ import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, SparklesIcon } fro
 import { Sprout } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { signInWithGooglePopup, signInWithFacebookPopup } from '../firebase';
 
 function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -167,6 +168,49 @@ function LoginPage() {
       setSuccess('Password reset instructions sent to your email');
     } catch (err) {
       setError(err.message || 'Failed to send reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOAuthSuccess = async (firebaseUser, provider) => {
+    try {
+      const name = firebaseUser.displayName || '';
+      const email = firebaseUser.email;
+      const response = await fetch('http://localhost:3001/api/auth/oauth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, provider })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'OAuth login failed');
+      const userData = { id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role || 'user' };
+      login(userData, data.token);
+      navigate('/dashboard');
+    } catch (e) {
+      setError(e.message || 'OAuth login failed');
+    }
+  };
+
+  const handleGoogle = async () => {
+    setIsLoading(true); setError(''); setSuccess('');
+    try {
+      const u = await signInWithGooglePopup();
+      await handleOAuthSuccess(u, 'google');
+    } catch (e) {
+      setError(e.message || 'Google sign-in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFacebook = async () => {
+    setIsLoading(true); setError(''); setSuccess('');
+    try {
+      const u = await signInWithFacebookPopup();
+      await handleOAuthSuccess(u, 'facebook');
+    } catch (e) {
+      setError(e.message || 'Facebook sign-in failed');
     } finally {
       setIsLoading(false);
     }
@@ -444,6 +488,7 @@ function LoginPage() {
             <div className="grid grid-cols-2 gap-4">
               <button 
                 type="button"
+                onClick={handleGoogle}
                 className="flex items-center justify-center space-x-2 border-2 border-emerald-200 py-3 rounded-xl hover:border-lime-500 hover:bg-lime-50 hover:shadow-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading}
               >
@@ -458,6 +503,7 @@ function LoginPage() {
 
               <button 
                 type="button"
+                onClick={handleFacebook}
                 className="flex items-center justify-center space-x-2 border-2 border-emerald-200 py-3 rounded-xl hover:border-lime-500 hover:bg-lime-50 hover:shadow-md transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading}
               >

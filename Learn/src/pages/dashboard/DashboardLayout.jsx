@@ -10,6 +10,7 @@ function DashboardLayout() {
             {[
               { to: '/dashboard', label: 'Overview', end: true },
               { to: '/dashboard/profile', label: 'Profile' },
+              { to: '/dashboard/assistant', label: 'Assistant' },
               { to: '/dashboard/settings', label: 'Settings' },
             ].map((item) => (
               <NavLink

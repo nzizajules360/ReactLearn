@@ -17,6 +17,7 @@ import DashboardLayout from './pages/dashboard/DashboardLayout.jsx'
 import Dashboard from './pages/dashboard/Dashboard.jsx'
 import ProfilePage from './pages/dashboard/ProfilePage.jsx'
 import SettingsPage from './pages/dashboard/SettingsPage.jsx'
+import AssistantPage from './pages/dashboard/AssistantPage.jsx'
 
 // Auth Context
 import { useAuth } from './context/AuthContext.jsx'
@@ -127,7 +128,9 @@ function App() {
         {/* Auth Routes - Only accessible when NOT logged in */}
         <Route path="/login" element={
           <PublicRoute>
+            <Navbar/> 
             <LoginPage />
+            <Footer />
           </PublicRoute>
         } />
 
@@ -139,6 +142,7 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="assistant" element={<AssistantPage />} />
           <Route path="settings" element={<SettingsPage />} />
           {/* Add other dashboard routes here as you create them */}
           <Route path="analytics" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Analytics Page - Coming Soon</h1></div>} />

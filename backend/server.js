@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { pool, initDb, seedDashboardForUser } from './db.js'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 dotenv.config()
 
@@ -17,6 +18,7 @@ app.use(express.json())
 app.use(morgan('dev'))
 
 await initDb()
+const genAI = process.env.GOOGLE_API_KEY ? new GoogleGenerativeAI(process.env.GOOGLE_API_KEY) : null
 
 function generateToken(user) {
   return jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' })
@@ -76,6 +78,34 @@ app.post('/api/auth/forgot-password', (req, res) => {
   if (!email) return res.status(400).json({ message: 'Email is required' })
   // For demo purposes, just respond success without sending email
   return res.json({ message: 'If this email exists, reset instructions have been sent' })
+})
+
+// OAuth login/upsert (expects trusted client auth)
+app.post('/api/auth/oauth-login', async (req, res) => {
+  try {
+    const { email, name = '', provider = 'google' } = req.body || {}
+    if (!email) return res.status(400).json({ message: 'Email is required' })
+    const lower = String(email).toLowerCase()
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [lower])
+    let user = rows[0]
+    if (!user) {
+      const randomPass = await bcrypt.hash(Math.random().toString(36), 10)
+      const [result] = await pool.query(
+        'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        [name || lower.split('@')[0], lower, randomPass, 'user']
+      )
+      const [inserted] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [result.insertId])
+      user = inserted[0]
+    } else if (name && name !== user.name) {
+      await pool.query('UPDATE users SET name = ? WHERE id = ?', [name, user.id])
+      user.name = name
+    }
+    const token = generateToken({ id: user.id, email: user.email, name: user.name, role: user.role })
+    await seedDashboardForUser(user.id)
+    return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role }, provider })
+  } catch (e) {
+    return res.status(500).json({ message: 'OAuth login failed' })
+  }
 })
 
 app.get('/api/profile', authMiddleware, async (req, res) => {
@@ -197,6 +227,25 @@ app.post('/api/iot/ingest', authMiddleware, async (req, res) => {
     return res.status(201).json({ message: 'ingested' })
   } catch (e) {
     return res.status(500).json({ message: 'Failed to ingest' })
+  }
+})
+
+// --- AI Assistant (Gemini) ---
+app.post('/api/ai/chat', authMiddleware, async (req, res) => {
+  if (!genAI) return res.status(500).json({ message: 'AI not configured' })
+  const { messages = [], system = 'You are an assistant that helps users manage sustainability activities and dashboards. Be concise and actionable.' } = req.body || {}
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const history = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content || '' }] }))
+    const promptParts = [
+      { text: `User: ${JSON.stringify({ id: req.user.id, email: req.user.email, name: req.user.name })}` },
+      { text: `Instruction: ${system}` },
+    ]
+    const result = await model.generateContent({ contents: [...promptParts, ...history] })
+    const text = result.response.text()
+    return res.json({ reply: text })
+  } catch (e) {
+    return res.status(500).json({ message: 'AI request failed' })
   }
 })
 
