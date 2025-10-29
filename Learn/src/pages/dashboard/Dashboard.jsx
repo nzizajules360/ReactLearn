@@ -23,6 +23,9 @@ function Dashboard() {
   const navigate = useNavigate();
   const [iotMessages, setIotMessages] = useState([]);
   const [iotConnected, setIotConnected] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +66,52 @@ function Dashboard() {
     };
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem('ecoswarm_token');
+    // initial load
+    fetch('http://localhost:3001/api/notifications', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then((list) => setNotifications(Array.isArray(list) ? list : []))
+      .catch(() => {});
+
+    // SSE with auto-retry
+    let es;
+    let retryMs = 1000;
+    const connect = () => {
+      es = new EventSource(`http://localhost:3001/api/notifications/stream?token=${encodeURIComponent(token)}`);
+      es.onopen = () => { retryMs = 1000; };
+      es.onmessage = (evt) => {
+        try {
+          const n = JSON.parse(evt.data);
+          setNotifications(prev => [n, ...prev].slice(0, 100));
+        } catch {}
+      };
+      es.onerror = () => {
+        es.close();
+        setTimeout(connect, retryMs);
+        retryMs = Math.min(retryMs * 2, 30000);
+      };
+    };
+    connect();
+    return () => es && es.close();
+  }, [isAuthenticated]);
+
+  const markAllNotificationsRead = async () => {
+    const token = localStorage.getItem('ecoswarm_token');
+    const unread = notifications.filter(n => !n.is_read);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+    // fire-and-forget requests
+    unread.slice(0, 20).forEach((n) => {
+      fetch(`http://localhost:3001/api/notifications/${n.id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    });
+  };
+
   const getTrendIcon = (trend) => {
     return trend === 'up' 
       ? <ArrowTrendingUpIcon className="w-4 h-4 text-lime-500" />
@@ -95,9 +144,33 @@ function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-                <BellIcon className="w-6 h-6" />
-              </button>
+              <div className="relative">
+                <button onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next) markAllNotificationsRead(); }} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors relative">
+                  <BellIcon className="w-6 h-6" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-lime-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
+                </button>
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 sm:w-96 w-[90vw] max-w-sm bg-white border border-emerald-200 rounded-xl shadow-lg z-10 max-h-96 overflow-auto">
+                    <div className="p-3 border-b border-emerald-100 flex items-center justify-between">
+                      <div className="font-semibold text-emerald-900">Notifications</div>
+                      <button onClick={() => setNotifOpen(false)} className="text-emerald-700 text-sm hover:underline">Close</button>
+                    </div>
+                    <div className="divide-y divide-emerald-100">
+                      {notifications.length === 0 ? (
+                        <div className="p-3 text-sm text-emerald-700">No notifications</div>
+                      ) : notifications.map((n) => (
+                        <div key={n.id} className={`p-3 ${n.is_read ? '' : 'bg-emerald-50'} hover:bg-emerald-50`}>
+                          <div className="text-emerald-900 font-medium text-sm">{n.title}</div>
+                          <div className="text-emerald-700 text-sm">{n.body}</div>
+                          <div className="text-emerald-500 text-xs mt-1">{new Date(n.created_at).toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Link to="/dashboard/settings" className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                 <CogIcon className="w-6 h-6" />
               </Link>

@@ -1,5 +1,5 @@
 // src/pages/dashboard/ProfilePage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   UserCircleIcon,
   EnvelopeIcon,
@@ -29,6 +29,7 @@ function ProfilePage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { isAuthenticated } = useAuth();
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -47,7 +48,7 @@ function ProfilePage() {
           location: data.profile?.location || '',
           department: data.profile?.department || '',
           bio: data.profile?.bio || '',
-          avatar: null
+          avatar: data.profile?.avatarUrl || null
         });
       } catch (e) {
         setError(e.message);
@@ -103,12 +104,40 @@ function ProfilePage() {
       <div className="bg-white rounded-2xl shadow-lg p-8 border border-emerald-200">
         <div className="flex items-center space-x-6">
           <div className="relative">
-            <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
-              ST
-            </div>
-            <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-lime-500 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-lime-600 transition-colors">
+            {userData.avatar ? (
+              <img src={userData.avatar} alt="Avatar" className="w-24 h-24 rounded-2xl object-cover border border-emerald-200" />
+            ) : (
+              <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                {(userData.name || 'U').slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <button onClick={() => fileInputRef.current?.click()} className="absolute -bottom-2 -right-2 w-10 h-10 bg-lime-500 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-lime-600 transition-colors">
               <CameraIcon className="w-5 h-5" />
             </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              setSaving(true); setError(''); setMessage('')
+              try {
+                const token = localStorage.getItem('ecoswarm_token')
+                const form = new FormData()
+                form.append('avatar', file)
+                const res = await fetch('http://localhost:3001/api/profile/avatar', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: form
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.message || 'Upload failed')
+                setUserData(prev => ({ ...prev, avatar: data.avatarUrl }))
+                setMessage('Avatar updated')
+              } catch (e) {
+                setError(e.message)
+              } finally {
+                setSaving(false)
+                e.target.value = ''
+              }
+            }} />
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-emerald-900">{userData.name || 'Your Name'}</h1>

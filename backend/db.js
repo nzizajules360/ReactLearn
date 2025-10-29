@@ -95,6 +95,22 @@ export async function initDb() {
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_created_at (user_id, created_at)
   )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_read_created (user_id, is_read, created_at)
+  )`)
+
+  // add avatar_url column if missing
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1024) DEFAULT NULL`)
+  } catch (_) {}
 }
 
 export async function seedDashboardForUser(userId) {
