@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { Sprout } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import GrassBlurCard from '../../components/GrassBlurCard';
 import { useNavigate, Link } from 'react-router-dom';
 
 function Dashboard() {
@@ -225,25 +226,25 @@ function Dashboard() {
             {/* Key Metrics */}
             <div className="grid grid-cols-2 gap-6">
               {dashboardData?.metrics?.map((metric, index) => (
-                <div key={index} className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+                <GrassBlurCard key={index}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-emerald-900">{metric.name}</h3>
                     {getTrendIcon(metric.trend)}
                   </div>
-                  <div className="flex items-end justify-between filter backdrop-blur-sm">
+                  <div className="flex items-end justify-between">
                     <div>
                       <p className="text-3xl font-bold text-emerald-900">{metric.value}</p>
-                      <p className={`text-sm ${metric.change > 0 ? 'text-lime-600' : 'text-emerald-600'}`}>
+                      <p className={`text-sm ${metric.change > 0 ? 'text-lime-700' : 'text-emerald-700'}`}>
                         {metric.change > 0 ? '+' : ''}{metric.change}% from last month
                       </p>
                     </div>
                   </div>
-                </div>
+                </GrassBlurCard>
               ))}
             </div>
 
             {/* Carbon Reduction Progress */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+            <GrassBlurCard>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-emerald-900">Monthly Carbon Reduction Goal</h2>
                 <span className="text-emerald-700 font-semibold">{dashboardData?.overview?.monthlyGoal}% Complete</span>
@@ -268,10 +269,10 @@ function Dashboard() {
                   <div className="text-sm text-emerald-600">Active Projects</div>
                 </div>
               </div>
-            </div>
+            </GrassBlurCard>
 
             {/* Recent Projects */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+            <GrassBlurCard>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-emerald-900">Active Projects</h2>
                 <button className="text-emerald-600 hover:text-emerald-700 font-semibold text-sm">
@@ -313,13 +314,13 @@ function Dashboard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </GrassBlurCard>
           </div>
 
           {/* Right Column - Sidebar */}
           <div className="space-y-8">
             {/* IoT Live Feed */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+            <GrassBlurCard>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-emerald-900">IoT Live Feed</h2>
                 <span className={`text-sm font-medium ${iotConnected ? 'text-lime-600' : 'text-amber-600'}`}>
@@ -342,9 +343,9 @@ function Dashboard() {
               <div className="flex justify-end mt-3">
                 <button onClick={() => setIotMessages([])} className="text-emerald-700 text-sm hover:underline">Clear</button>
               </div>
-            </div>
+            </GrassBlurCard>
             {/* Quick Actions */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+            <GrassBlurCard>
               <h2 className="text-xl font-bold text-emerald-900 mb-4">Quick Actions</h2>
               <div className="space-y-3">
                 <button className="w-full flex items-center space-x-3 p-3 bg-lime-50 border border-lime-200 rounded-xl hover:bg-lime-100 transition-colors group">
@@ -364,10 +365,10 @@ function Dashboard() {
                   <span className="font-semibold text-emerald-900">Manage Team</span>
                 </button>
               </div>
-            </div>
+            </GrassBlurCard>
 
             {/* Recent Activity */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-emerald-200">
+            <GrassBlurCard>
               <h2 className="text-xl font-bold text-emerald-900 mb-4">Recent Activity</h2>
               <div className="space-y-4">
                 {dashboardData?.recentActivities?.map((activity, index) => (
@@ -385,7 +386,7 @@ function Dashboard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </GrassBlurCard>
 
             {/* Environmental Impact */}
             <div className="bg-gradient-to-br from-emerald-700 to-green-600 rounded-2xl p-6 text-white">

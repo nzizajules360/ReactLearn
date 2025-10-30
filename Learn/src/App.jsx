@@ -18,6 +18,9 @@ import Dashboard from './pages/dashboard/Dashboard.jsx'
 import ProfilePage from './pages/dashboard/ProfilePage.jsx'
 import SettingsPage from './pages/dashboard/SettingsPage.jsx'
 import AssistantPage from './pages/dashboard/AssistantPage.jsx'
+import AdminLayout from './pages/admin/AdminLayout.jsx'
+import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import UsersPage from './pages/admin/UsersPage.jsx'
 
 // Auth Context
 import { useAuth } from './context/AuthContext.jsx'
@@ -41,6 +44,34 @@ function ProtectedRoute({ children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  return children
+}
+
+// Admin Route Component
+function AdminRoute({ children }) {
+  const { isAuthenticated, isLoading, user } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-lime-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <div className="w-8 h-8 bg-white rounded-lg animate-spin"></div>
+          </div>
+          <p className="text-emerald-700 font-semibold">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
   }
 
   return children
@@ -150,6 +181,18 @@ function App() {
           <Route path="reports" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Reports Page - Coming Soon</h1></div>} />
           <Route path="team" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Team Page - Coming Soon</h1></div>} />
           <Route path="calendar" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Calendar Page - Coming Soon</h1></div>} />
+        </Route>
+
+        {/* Admin Routes - Only admin users */}
+        <Route path="/admin" element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="reports" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">System Reports - Coming Soon</h1></div>} />
+          <Route path="notifications" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Notifications Admin - Coming Soon</h1></div>} />
         </Route>
 
         {/* Catch all route */}

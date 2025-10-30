@@ -107,6 +107,39 @@ export async function initDb() {
     INDEX idx_user_read_created (user_id, is_read, created_at)
   )`)
 
+  await pool.query(`CREATE TABLE IF NOT EXISTS tasks (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT NULL,
+    status ENUM('todo','in-progress','done') NOT NULL DEFAULT 'todo',
+    priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+    due_date DATE DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_status_due (user_id, status, due_date)
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS dashboard_widgets (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    layout JSON NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_user (user_id)
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS reports (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    config JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_created (user_id, created_at)
+  )`)
+
   // add avatar_url column if missing
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1024) DEFAULT NULL`)

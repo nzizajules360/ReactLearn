@@ -352,6 +352,157 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   return res.json(users)
 })
 
+// --- Tasks (per-user) ---
+app.get('/api/tasks', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { status = '', q = '', limit = 50, offset = 0 } = req.query || {}
+  const where = ['user_id = ?']
+  const params = [userId]
+  if (status) { where.push('status = ?'); params.push(status) }
+  if (q) { where.push('(title LIKE ? OR description LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
+  params.push(Number(limit), Number(offset))
+  const [rows] = await pool.query(
+    `SELECT id, title, description, status, priority, due_date, created_at, updated_at
+     FROM tasks WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ? OFFSET ?`, params
+  )
+  return res.json(rows)
+})
+
+app.post('/api/tasks', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { title, description = '', status = 'todo', priority = 'medium', due_date = null } = req.body || {}
+  if (!title) return res.status(400).json({ message: 'title is required' })
+  const [result] = await pool.query(
+    'INSERT INTO tasks (user_id, title, description, status, priority, due_date) VALUES (?, ?, ?, ?, ?, ?)',
+    [userId, title, description, status, priority, due_date]
+  )
+  const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ? AND user_id = ?', [result.insertId, userId])
+  return res.status(201).json(rows[0])
+})
+
+app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const id = Number(req.params.id)
+  const { title, description, status, priority, due_date } = req.body || {}
+  const [result] = await pool.query(
+    `UPDATE tasks SET
+       title = COALESCE(?, title),
+       description = COALESCE(?, description),
+       status = COALESCE(?, status),
+       priority = COALESCE(?, priority),
+       due_date = COALESCE(?, due_date)
+     WHERE id = ? AND user_id = ?`,
+    [title ?? null, description ?? null, status ?? null, priority ?? null, due_date ?? null, id, userId]
+  )
+  if (result.affectedRows === 0) return res.status(404).json({ message: 'Task not found' })
+  const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ? AND user_id = ?', [id, userId])
+  return res.json(rows[0])
+})
+
+app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const id = Number(req.params.id)
+  const [result] = await pool.query('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId])
+  if (result.affectedRows === 0) return res.status(404).json({ message: 'Task not found' })
+  return res.json({ message: 'deleted' })
+})
+
+// --- Dashboard widgets layout (per-user) ---
+app.get('/api/dashboard/widgets', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const [rows] = await pool.query('SELECT layout FROM dashboard_widgets WHERE user_id = ? LIMIT 1', [userId])
+  return res.json({ layout: rows[0]?.layout || [] })
+})
+
+app.put('/api/dashboard/widgets', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { layout } = req.body || {}
+  if (!layout) return res.status(400).json({ message: 'layout is required' })
+  await pool.query(
+    `INSERT INTO dashboard_widgets (user_id, layout)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE layout = VALUES(layout), updated_at = CURRENT_TIMESTAMP`,
+    [userId, JSON.stringify(layout)]
+  )
+  return res.json({ message: 'layout saved' })
+})
+
+// --- Timeseries metrics from sensor_messages ---
+app.get('/api/metrics/timeseries', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { key = 'energy', period = '30d', interval = 'day' } = req.query || {}
+  const days = String(period).endsWith('d') ? Math.min(365, Number(String(period).slice(0, -1)) || 30) : 30
+  const timeExpr = interval === 'hour' ? 'DATE_FORMAT(created_at, "%Y-%m-%d %H:00:00")' : 'DATE(created_at)'
+
+  const [rows] = await pool.query(
+    `SELECT ${timeExpr} AS ts,
+            AVG(NULLIF(JSON_EXTRACT(payload, CONCAT('$.', ?)), 'null')) AS avg_value,
+            SUM(CASE WHEN JSON_EXTRACT(payload, CONCAT('$.', ?)) IS NOT NULL THEN 1 ELSE 0 END) AS with_value,
+            COUNT(*) AS total
+     FROM sensor_messages
+     WHERE user_id = ? AND created_at >= (CURRENT_TIMESTAMP - INTERVAL ? DAY)
+     GROUP BY ts
+     ORDER BY ts ASC`,
+    [key, key, userId, days]
+  )
+
+  const series = rows.map(r => ({
+    ts: r.ts,
+    avg: r.avg_value !== null ? Number(r.avg_value) : null,
+    countWithValue: Number(r.with_value || 0),
+    total: Number(r.total || 0)
+  }))
+  return res.json({ key, period: `${days}d`, interval, series })
+})
+
+// --- Saved reports (per-user) ---
+app.get('/api/reports', authMiddleware, async (req, res) => {
+  const [rows] = await pool.query('SELECT id, name, config, created_at FROM reports WHERE user_id = ? ORDER BY created_at DESC', [req.user.id])
+  return res.json(rows)
+})
+
+app.post('/api/reports', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { name, config } = req.body || {}
+  if (!name || !config) return res.status(400).json({ message: 'name and config are required' })
+  const [result] = await pool.query('INSERT INTO reports (user_id, name, config) VALUES (?, ?, ?)', [userId, name, JSON.stringify(config)])
+  const [rows] = await pool.query('SELECT id, name, config, created_at FROM reports WHERE id = ? AND user_id = ?', [result.insertId, userId])
+  return res.status(201).json(rows[0])
+})
+
+app.delete('/api/reports/:id', authMiddleware, async (req, res) => {
+  const id = Number(req.params.id)
+  const [result] = await pool.query('DELETE FROM reports WHERE id = ? AND user_id = ?', [id, req.user.id])
+  if (result.affectedRows === 0) return res.status(404).json({ message: 'Report not found' })
+  return res.json({ message: 'deleted' })
+})
+
+// --- CSV export (per-user sensor messages) ---
+app.get('/api/export/sensor_messages.csv', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { limit = 1000, since = '' } = req.query || {}
+  const params = [userId]
+  let where = 'WHERE user_id = ?'
+  if (since) { where += ' AND created_at >= ?'; params.push(since) }
+  params.push(Number(limit))
+  const [rows] = await pool.query(
+    `SELECT id, topic, payload, created_at
+     FROM sensor_messages
+     ${where}
+     ORDER BY created_at DESC
+     LIMIT ?`, params
+  )
+  res.setHeader('Content-Type', 'text/csv')
+  res.setHeader('Content-Disposition', 'attachment; filename="sensor_messages.csv"')
+  res.write('id,topic,created_at,payload\n')
+  for (const r of rows) {
+    const payloadStr = typeof r.payload === 'string' ? r.payload : JSON.stringify(r.payload)
+    const safePayload = '"' + String(payloadStr).replaceAll('"', '""') + '"'
+    res.write(`${r.id},${r.topic},${new Date(r.created_at).toISOString()},${safePayload}\n`)
+  }
+  res.end()
+})
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
 })
