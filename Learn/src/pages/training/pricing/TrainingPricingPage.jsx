@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   CheckCircle, 
   Star, 
@@ -11,11 +11,33 @@ import {
   Sparkles,
   Crown,
   Rocket,
-  BookOpen
+  BookOpen,
+  Smartphone,
+  X
 } from 'lucide-react';
 
 const TrainingPricingPage = () => {
+  const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+
+  const handleSelectPlan = (plan) => {
+    if (plan.price[billingCycle] === 0) {
+      // Free plan - direct to courses
+      navigate('/training/courses');
+    } else {
+      // Paid plan - show payment provider selection
+      setSelectedPlan(plan);
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentProvider = (provider) => {
+    setShowPaymentModal(false);
+    const planQuery = selectedPlan.name.toLowerCase().replace(' ', '-');
+    navigate(`/training/checkout?plan=${planQuery}&provider=${provider}`);
+  };
   
   const plans = [
     {
@@ -235,16 +257,16 @@ const TrainingPricingPage = () => {
                     ))}
                   </ul>
                   
-                  <Link
-                    to={plan.ctaLink}
-                    className={`block w-full text-center py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                  <button
+                    onClick={() => handleSelectPlan(plan)}
+                    className={`w-full text-center py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
                       plan.popular
                         ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700'
                         : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                     }`}
                   >
                     {plan.cta}
-                  </Link>
+                  </button>
                 </div>
               </div>
             );
@@ -286,12 +308,12 @@ const TrainingPricingPage = () => {
                   ))}
                 </ul>
                 
-                <Link
-                  to={plan.ctaLink}
-                  className="block w-full text-center py-2 px-4 bg-emerald-50 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-100 transition-all duration-200"
+                <button
+                  onClick={() => handleSelectPlan(plan)}
+                  className="w-full text-center py-2 px-4 bg-emerald-50 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-100 transition-all duration-200"
                 >
                   {plan.cta}
-                </Link>
+                </button>
               </div>
             );
           })}
@@ -366,6 +388,80 @@ const TrainingPricingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Provider Selection Modal */}
+      {showPaymentModal && selectedPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Choose Payment Method</h3>
+            <p className="text-gray-600 mb-6">
+              Select how you'd like to pay for <span className="font-semibold text-emerald-600">{selectedPlan.name}</span>
+            </p>
+
+            <div className="space-y-4">
+              {/* Flutterwave - Mobile Money */}
+              <button
+                onClick={() => handlePaymentProvider('flutterwave')}
+                className="w-full p-4 border-2 border-yellow-300 rounded-xl hover:border-yellow-500 hover:bg-yellow-50 transition-all duration-200 text-left group"
+              >
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg">
+                    <Smartphone className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900 mb-1 group-hover:text-yellow-900">Mobile Money</h4>
+                    <p className="text-sm text-gray-600 mb-2">MTN MoMo, Airtel Money</p>
+                    <div className="flex items-center space-x-2">
+                      <div className="px-2 py-1 bg-yellow-400 text-gray-900 text-xs font-bold rounded">MTN</div>
+                      <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">Airtel</div>
+                      <span className="text-xs text-gray-500">+ Cards</span>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full self-start">
+                    Recommended
+                  </div>
+                </div>
+              </button>
+
+              {/* Stripe - Credit Card */}
+              <button
+                onClick={() => handlePaymentProvider('stripe')}
+                className="w-full p-4 border-2 border-blue-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left group"
+              >
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900 mb-1 group-hover:text-blue-900">Credit/Debit Card</h4>
+                    <p className="text-sm text-gray-600 mb-2">Visa, Mastercard, Amex</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500">💳 Secure international payments</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-gray-600">
+                  <p className="font-semibold text-gray-900 mb-1">100% Secure Payment</p>
+                  <p>All transactions are encrypted and secured. We never store your payment details.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
