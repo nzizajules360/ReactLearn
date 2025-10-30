@@ -16,7 +16,8 @@ function LoginPage() {
     confirmPassword: '',
     location: '',
     department: '',
-    bio: ''
+    bio: '',
+    adminCode: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -94,7 +95,8 @@ function LoginPage() {
             password: formData.password,
             location: formData.location,
             department: formData.department,
-            bio: formData.bio
+            bio: formData.bio,
+            adminCode: formData.adminCode
           }
         : { email: formData.email, password: formData.password };
 
@@ -115,7 +117,7 @@ function LoginPage() {
       if (isSignUp) {
         setSuccess('Account created successfully! Please login.');
         setIsSignUp(false);
-        setFormData({ name: '', email: '', password: '', confirmPassword: '', location: '', department: '', bio: '' });
+        setFormData({ name: '', email: '', password: '', confirmPassword: '', location: '', department: '', bio: '', adminCode: '' });
       } else {
         // Login successful
         const userData = {
@@ -126,11 +128,17 @@ function LoginPage() {
         };
         
         login(userData, data.token);
-        setSuccess('Login successful! Redirecting...');
         
-        // Redirect to dashboard after successful login
+        // Redirect based on user role
+        const isAdmin = userData.role === 'admin';
+        setSuccess(`Login successful! Redirecting to ${isAdmin ? 'admin panel' : 'dashboard'}...`);
+        
         setTimeout(() => {
-          navigate('/dashboard');
+          if (isAdmin) {
+            navigate('/admin');
+          } else {
+            navigate('/dashboard');
+          }
         }, 1000);
       }
     } catch (err) {
@@ -408,6 +416,29 @@ function LoginPage() {
                   className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:border-lime-500 focus:outline-none transition-all duration-200 bg-green-50/50 resize-none"
                   disabled={isLoading}
                 />
+              </div>
+            )}
+
+            {/* Admin Code (Sign Up Only - Optional for admin registration) */}
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-semibold text-emerald-900 mb-2">
+                  Admin Code <span className="text-xs text-emerald-600">(Optional - For admin accounts only)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    name="adminCode"
+                    value={formData.adminCode}
+                    onChange={handleInputChange}
+                    placeholder="Enter admin secret code"
+                    className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:border-lime-500 focus:outline-none transition-all duration-200 bg-green-50/50"
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="text-xs text-emerald-600 mt-1">
+                  Leave blank for regular user account. Enter 101010@101010 for admin access.
+                </p>
               </div>
             )}
 

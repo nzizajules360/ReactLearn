@@ -1,0 +1,220 @@
+{
+  "lessons": [
+    {
+      "id": 1,
+      "courseId": 1,
+      "title": "Introduction to IoT",
+      "description": "Learn the fundamentals of Internet of Things and its applications",
+      "duration": "45 min",
+      "type": "video",
+      "order": 1,
+      "isLocked": false,
+      "isCompleted": false,
+      "videoUrl": "https://example.com/video1",
+      "content": {
+        "video": {
+          "url": "https://example.com/iot-intro.mp4",
+          "duration": 1800
+        },
+        "transcript": "Welcome to IoT Fundamentals. In this lesson, we'll explore what IoT is and why it matters...",
+        "slides": [
+          {
+            "id": 1,
+            "title": "What is IoT?",
+            "content": "IoT connects physical devices to the internet for data exchange"
+          },
+          {
+            "id": 2,
+            "title": "IoT Applications",
+            "content": "Smart homes, industrial automation, healthcare, agriculture"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "id": 1,
+          "name": "IoT Basics PDF",
+          "type": "pdf",
+          "url": "/resources/iot-basics.pdf"
+        },
+        {
+          "id": 2,
+          "name": "Arduino Setup Guide",
+          "type": "link",
+          "url": "https://www.arduino.cc/en/Guide/HomePage"
+        }
+      ],
+      "quiz": {
+        "id": 1,
+        "questions": [
+          {
+            "id": 1,
+            "question": "What does IoT stand for?",
+            "options": ["Internet of Things", "Interconnected Objects", "Input Output Technology", "Integrated Operations"],
+            "correctAnswer": 0
+          },
+          {
+            "id": 2,
+            "question": "Which of these is NOT an IoT application?",
+            "options": ["Smart home", "Industrial automation", "Traditional farming", "Healthcare monitoring"],
+            "correctAnswer": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "courseId": 1,
+      "title": "Setting Up Arduino IDE",
+      "description": "Install and configure Arduino development environment",
+      "duration": "30 min",
+      "type": "video",
+      "order": 2,
+      "isLocked": false,
+      "isCompleted": false,
+      "videoUrl": "https://example.com/video2",
+      "content": {
+        "video": {
+          "url": "https://example.com/arduino-setup.mp4",
+          "duration": 1200
+        },
+        "code": [
+          {
+            "language": "cpp",
+            "title": "Basic Arduino Setup",
+            "code": "void setup() {\n  Serial.begin(9600);\n  pinMode(LED_BUILTIN, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(LED_BUILTIN, HIGH);\n  delay(1000);\n  digitalWrite(LED_BUILTIN, LOW);\n  delay(1000);\n}"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "id": 3,
+          "name": "Arduino IDE Download",
+          "type": "link",
+          "url": "https://www.arduino.cc/en/software"
+        }
+      ],
+      "quiz": {
+        "id": 2,
+        "questions": [
+          {
+            "id": 3,
+            "question": "What is the default baud rate for Arduino Serial communication?",
+            "options": ["4800", "9600", "115200", "57600"],
+            "correctAnswer": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "courseId": 1,
+      "title": "Working with Sensors",
+      "description": "Learn to interface various sensors with Arduino",
+      "duration": "60 min",
+      "type": "video",
+      "order": 3,
+      "isLocked": false,
+      "isCompleted": false,
+      "videoUrl": "https://example.com/video3",
+      "content": {
+        "video": {
+          "url": "https://example.com/sensors.mp4",
+          "duration": 2400
+        },
+        "code": [
+          {
+            "language": "cpp",
+            "title": "Temperature Sensor Code",
+            "code": "#include <DHT.h>\n#define DHTPIN 2\n#define DHTTYPE DHT11\n\nDHT dht(DHTPIN, DHTTYPE);\n\nvoid setup() {\n  Serial.begin(9600);\n  dht.begin();\n}\n\nvoid loop() {\n  float temp = dht.readTemperature();\n  float hum = dht.readHumidity();\n  Serial.print(\"Temperature: \");\n  Serial.print(temp);\n  Serial.print(\"°C, Humidity: \");\n  Serial.print(hum);\n  Serial.println(\"%\");\n  delay(2000);\n}"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "id": 4,
+          "name": "Sensor Datasheet Collection",
+          "type": "pdf",
+          "url": "/resources/sensors.pdf"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "courseId": 1,
+      "title": "IoT Communication Protocols",
+      "description": "Understand MQTT, HTTP, and other IoT protocols",
+      "duration": "50 min",
+      "type": "video",
+      "order": 4,
+      "isLocked": false,
+      "isCompleted": false,
+      "videoUrl": "https://example.com/video4",
+      "content": {
+        "video": {
+          "url": "https://example.com/protocols.mp4",
+          "duration": 2000
+        }
+      }
+    },
+    {
+      "id": 5,
+      "courseId": 1,
+      "title": "Cloud Integration",
+      "description": "Connect your IoT devices to cloud platforms",
+      "duration": "55 min",
+      "type": "video",
+      "order": 5,
+      "isLocked": false,
+      "isCompleted": false,
+      "videoUrl": "https://example.com/video5",
+      "content": {
+        "video": {
+          "url": "https://example.com/cloud.mp4",
+          "duration": 2200
+        }
+      }
+    },
+    {
+      "id": 6,
+      "courseId": 1,
+      "title": "Final Project: Smart Weather Station",
+      "description": "Build a complete IoT weather monitoring system",
+      "duration": "120 min",
+      "type": "project",
+      "order": 6,
+      "isLocked": false,
+      "isCompleted": false,
+      "content": {
+        "project": {
+          "description": "Create a weather station that monitors temperature, humidity, and pressure",
+          "requirements": [
+            "Connect DHT22 sensor for temperature and humidity",
+            "Connect BMP180 sensor for pressure",
+            "Display data on LCD screen",
+            "Send data to cloud platform via MQTT",
+            "Create web dashboard for visualization"
+          ],
+          "starterCode": {
+            "language": "cpp",
+            "title": "Weather Station Starter",
+            "code": "#include <DHT.h>\n#include <Wire.h>\n#include <Adafruit_BMP085.h>\n#include <LiquidCrystal_I2C.h>\n#include <WiFi.h>\n#include <PubSubClient.h>\n\n// Define your pins and connections here\n// Follow the project requirements to complete this code"
+          }
+        }
+      }
+    }
+  ],
+  "courseProgress": [
+    {
+      "userId": "user_005",
+      "courseId": 1,
+      "completedLessons": [],
+      "currentLesson": 1,
+      "progressPercentage": 0,
+      "timeSpent": 0,
+      "lastAccessed": "2024-11-30T10:00:00Z",
+      "quizScores": {},
+      "certificateEarned": false
+    }
+  ]
+}

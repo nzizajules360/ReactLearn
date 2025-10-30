@@ -25,10 +25,24 @@ import NotificationsPage from './pages/admin/NotificationsPage.jsx'
 import ContactsPage from './pages/admin/ContactsPage.jsx'
 import MetricsPage from './pages/admin/MetricsPage.jsx'
 import ReportsPage from './pages/admin/ReportsPage.jsx'
+import CoursesManagementPage from './pages/admin/CoursesManagementPage.jsx'
 import ChatLayout from './pages/chat/ChatLayout.jsx'
 import ChatListPage from './pages/chat/ChatListPage.jsx'
 import ChatRoomPage from './pages/chat/ChatRoomPage.jsx'
 import NewChatPage from './pages/chat/NewChatPage.jsx'
+
+// Training Components
+import TrainingLayout from './pages/training/TrainingLayout.jsx'
+import TrainingHome from './pages/training/TrainingHome.jsx'
+import CoursesPage from './pages/training/courses/CoursesPage.jsx'
+import CourseDetailPage from './pages/training/courses/CourseDetailPage.jsx'
+import LessonPage from './pages/training/courses/LessonPage.jsx'
+import CommunityPage from './pages/training/community/CommunityPage.jsx'
+import TrainingPricingPage from './pages/training/pricing/TrainingPricingPage.jsx'
+import CheckoutPage from './pages/training/checkout/CheckoutPage.jsx'
+import WorkspacePage from './pages/training/workspace/WorkspacePage.jsx'
+import CollaborationPage from './pages/training/collaboration/CollaborationPage.jsx'
+import AIAssistant from './components/AIAssistant.jsx'
 
 // Auth Context
 import { useAuth } from './context/AuthContext.jsx'
@@ -87,7 +101,7 @@ function AdminRoute({ children }) {
 
 // Public Route Component (Redirect to dashboard if already authenticated)
 function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
     return (
@@ -103,7 +117,9 @@ function PublicRoute({ children }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    // Redirect based on user role
+    const redirectTo = user?.role === 'admin' ? '/admin' : '/dashboard'
+    return <Navigate to={redirectTo} replace />
   }
 
   return children
@@ -202,14 +218,34 @@ function App() {
           <Route path="new" element={<NewChatPage />} />
         </Route>
 
+        {/* Training - Protected */}
+        <Route path="/training" element={
+          <ProtectedRoute>
+            <TrainingLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<TrainingHome />} />
+          <Route path="courses" element={<CoursesPage />} />
+          <Route path="course/:courseId" element={<CourseDetailPage />} />
+          <Route path="course/:courseId/lesson/:lessonId" element={<LessonPage />} />
+          <Route path="community" element={<CommunityPage />} />
+          <Route path="pricing" element={<TrainingPricingPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="workspace" element={<WorkspacePage />} />
+          <Route path="collaboration" element={<CollaborationPage />} />
+        </Route>
+
         {/* Admin Routes - Only admin users */}
         <Route path="/admin" element={
+          
           <AdminRoute>
+            <Navbar/>
             <AdminLayout />
           </AdminRoute>
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="courses" element={<CoursesManagementPage />} />
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="contacts" element={<ContactsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
@@ -219,6 +255,7 @@ function App() {
         {/* Catch all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <AIAssistant />
     </Router>
   )
 }

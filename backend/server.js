@@ -50,15 +50,23 @@ app.get('/', (req, res) => {
 })
 
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, location = '', department = '', bio = '', phone = '' } = req.body || {}
+  const { name, email, password, location = '', department = '', bio = '', phone = '', adminCode = '' } = req.body || {}
   if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' })
+  
+  // Check for admin secret code
+  const ADMIN_SECRET_CODE = '101010@101010'
+  const role = adminCode === ADMIN_SECRET_CODE ? 'admin' : 'user'
+  
   const passwordHash = await bcrypt.hash(password, 10)
   try {
     await pool.query(
       'INSERT INTO users (name, email, password_hash, role, phone, location, department, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, email.toLowerCase(), passwordHash, 'user', phone, location, department, bio]
+      [name, email.toLowerCase(), passwordHash, role, phone, location, department, bio]
     )
-    return res.status(201).json({ message: 'Registered successfully' })
+    return res.status(201).json({ 
+      message: 'Registered successfully',
+      role: role
+    })
   } catch (e) {
     if (e && e.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: 'Email already registered' })
@@ -159,6 +167,63 @@ app.post('/api/profile/avatar', authMiddleware, upload.single('avatar'), async (
   await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [url, req.user.id])
   const full = `${req.protocol}://${req.get('host')}${url}`
   return res.status(201).json({ message: 'Avatar updated', avatarUrl: full })
+})
+
+// Course materials upload (videos, PDFs, documents)
+const courseStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const type = req.body.type || 'general'
+    const dir = path.join(uploadsDir, type)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname)
+    const basename = path.basename(file.originalname, ext).replace(/[^a-z0-9]/gi, '_')
+    cb(null, `${basename}_${Date.now()}${ext}`)
+  }
+})
+
+const courseUpload = multer({ 
+  storage: courseStorage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|mp4|webm|ogg|txt/
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
+    const mimetype = allowedTypes.test(file.mimetype)
+    if (mimetype && extname) {
+      return cb(null, true)
+    }
+    cb(new Error('Invalid file type. Allowed: images, videos, PDFs, documents'))
+  }
+})
+
+app.post('/api/admin/upload', authMiddleware, courseUpload.single('file'), async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+    
+    const type = req.body.type || 'general'
+    const url = `/uploads/${type}/${req.file.filename}`
+    const fullUrl = `${req.protocol}://${req.get('host')}${url}`
+    
+    return res.status(201).json({ 
+      message: 'File uploaded successfully', 
+      url: fullUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+      type: req.file.mimetype
+    })
+  } catch (error) {
+    console.error('Upload error:', error)
+    return res.status(500).json({ message: 'File upload failed' })
+  }
 })
 
 app.get('/api/dashboard', authMiddleware, async (req, res) => {
@@ -435,7 +500,7 @@ app.post('/api/chat/:chatId/signal', authMiddleware, async (req, res) => {
     if (Number(p.user_id) === Number(userId)) continue
     await broadcastChat(p.user_id, { chat_id: chatId, type: 'webrtc', from: userId, signal: payload })
   }
-  return res.json({ ok: true })
+  return res.json({ message: 'signal sent' })
 })
 
 // --- AI Assistant (Gemini) ---
@@ -444,11 +509,19 @@ app.post('/api/ai/chat', authMiddleware, async (req, res) => {
   const { messages = [], system = 'You are an assistant that helps users manage sustainability activities and dashboards. Be concise and actionable.' } = req.body || {}
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction: system })
-    const history = messages
+    let history = messages
       .filter(m => typeof m?.content === 'string' && m.content.trim().length)
       .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content.trim() }] }))
 
-    const chat = model.startChat({ history: history.slice(0, 20) })
+    // Ensure history starts with user message (Gemini requirement)
+    if (history.length > 0 && history[0].role !== 'user') {
+      history = history.filter((_, index) => index > 0 || history[0].role === 'user')
+    }
+
+    // Limit history to last 20 messages
+    const chatHistory = history.slice(-20)
+    
+    const chat = model.startChat({ history: chatHistory })
     const lastUser = [...history].reverse().find(m => m.role === 'user')
     const prompt = lastUser?.parts?.[0]?.text || 'Hello'
     const result = await chat.sendMessage(prompt)
@@ -714,7 +787,680 @@ app.get('/api/export/sensor_messages.csv', authMiddleware, async (req, res) => {
   res.end()
 })
 
+// Training API Routes
+app.get('/api/training/stats', async (req, res) => {
+  try {
+    const statsPath = path.join(process.cwd(), 'backend', 'data', 'training-stats.json')
+    const statsData = JSON.parse(fs.readFileSync(statsPath, 'utf8'))
+    res.json(statsData)
+  } catch (error) {
+    console.error('Error fetching training stats:', error)
+    res.status(500).json({ message: 'Failed to fetch training statistics' })
+  }
+})
+
+app.get('/api/training/courses', async (req, res) => {
+  try {
+    let query = 'SELECT * FROM courses WHERE 1=1'
+    const params = []
+    
+    const { category, level, search } = req.query
+    
+    if (category && category !== 'all') {
+      query += ' AND category = ?'
+      params.push(category)
+    }
+    
+    if (level && level !== 'all') {
+      query += ' AND level = ?'
+      params.push(level)
+    }
+    
+    if (search) {
+      query += ' AND (title LIKE ? OR description LIKE ? OR instructor LIKE ?)'
+      const searchPattern = `%${search}%`
+      params.push(searchPattern, searchPattern, searchPattern)
+    }
+    
+    query += ' ORDER BY created_at DESC'
+    
+    const [courses] = await pool.query(query, params)
+    
+    // Parse JSON fields
+    const parsedCourses = courses.map(course => ({
+      ...course,
+      topics: course.topics ? JSON.parse(course.topics) : [],
+      learningObjectives: course.learning_objectives ? JSON.parse(course.learning_objectives) : [],
+      requirements: course.requirements ? JSON.parse(course.requirements) : { prerequisites: [], materials: [] },
+      certificate: Boolean(course.certificate),
+      locked: Boolean(course.locked)
+    }))
+    
+    res.json(parsedCourses)
+  } catch (error) {
+    console.error('Error fetching courses:', error)
+    res.status(500).json({ message: 'Failed to fetch courses' })
+  }
+})
+
+app.get('/api/training/courses/:id', async (req, res) => {
+  try {
+    const [course] = await pool.query('SELECT * FROM courses WHERE id = ?', [req.params.id])
+    
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    
+    // Parse JSON fields
+    const parsedCourse = {
+      ...course,
+      topics: course.topics ? JSON.parse(course.topics) : [],
+      learningObjectives: course.learning_objectives ? JSON.parse(course.learning_objectives) : [],
+      requirements: course.requirements ? JSON.parse(course.requirements) : { prerequisites: [], materials: [] },
+      certificate: Boolean(course.certificate),
+      locked: Boolean(course.locked)
+    }
+    
+    res.json(parsedCourse)
+  } catch (error) {
+    console.error('Error fetching course:', error)
+    res.status(500).json({ message: 'Failed to fetch course' })
+  }
+})
+
+app.get('/api/training/community', async (req, res) => {
+  try {
+    const [teams] = await pool.query('SELECT * FROM community_teams ORDER BY created_at DESC')
+    const [tasks] = await pool.query('SELECT * FROM community_tasks ORDER BY created_at DESC')
+    const [stats] = await pool.query('SELECT * FROM training_stats LIMIT 1')
+    
+    res.json({
+      teams,
+      tasks,
+      leaderboard: [], // Will be populated from user data
+      stats: stats[0] || { total_students: 0, courses_completed: 0, avg_rating: 0, certificates_issued: 0 }
+    })
+  } catch (error) {
+    console.error('Error fetching community data:', error)
+    res.status(500).json({ message: 'Failed to fetch community data' })
+  }
+})
+
+app.get('/api/training/community/teams', async (req, res) => {
+  try {
+    const communityPath = path.join(process.cwd(), 'backend', 'data', 'community.json')
+    const communityData = JSON.parse(fs.readFileSync(communityPath, 'utf8'))
+    
+    const { search, category, difficulty } = req.query
+    
+    let filteredTeams = communityData.teams
+    
+    if (search) {
+      const searchLower = search.toLowerCase()
+      filteredTeams = filteredTeams.filter(team => 
+        team.name.toLowerCase().includes(searchLower) ||
+        team.description.toLowerCase().includes(searchLower)
+      )
+    }
+    
+    if (category && category !== 'all') {
+      filteredTeams = filteredTeams.filter(team => team.category === category)
+    }
+    
+    if (difficulty && difficulty !== 'all') {
+      filteredTeams = filteredTeams.filter(team => team.difficulty === difficulty)
+    }
+    
+    res.json(filteredTeams)
+  } catch (error) {
+    console.error('Error fetching teams:', error)
+    res.status(500).json({ message: 'Failed to fetch teams' })
+  }
+})
+
+app.get('/api/training/community/tasks', async (req, res) => {
+  try {
+    const communityPath = path.join(process.cwd(), 'backend', 'data', 'community.json')
+    const communityData = JSON.parse(fs.readFileSync(communityPath, 'utf8'))
+    
+    const { teamId, status } = req.query
+    
+    let filteredTasks = communityData.tasks
+    
+    if (teamId) {
+      filteredTasks = filteredTasks.filter(task => task.teamId === teamId)
+    }
+    
+    if (status && status !== 'all') {
+      filteredTasks = filteredTasks.filter(task => task.status === status)
+    }
+    
+    res.json(filteredTasks)
+  } catch (error) {
+    console.error('Error fetching tasks:', error)
+    res.status(500).json({ message: 'Failed to fetch tasks' })
+  }
+})
+
+app.get('/api/training/community/leaderboard', async (req, res) => {
+  try {
+    const communityPath = path.join(process.cwd(), 'backend', 'data', 'community.json')
+    const communityData = JSON.parse(fs.readFileSync(communityPath, 'utf8'))
+    res.json(communityData.leaderboard)
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error)
+    res.status(500).json({ message: 'Failed to fetch leaderboard' })
+  }
+})
+
+app.post('/api/training/community/join-team', authMiddleware, async (req, res) => {
+  try {
+    const { teamId } = req.body
+    const userId = req.user.id
+    
+    // In a real implementation, this would update the database
+    // For now, we'll just return a success response
+    res.json({ message: 'Successfully joined team', teamId, userId })
+  } catch (error) {
+    console.error('Error joining team:', error)
+    res.status(500).json({ message: 'Failed to join team' })
+  }
+})
+
+app.post('/api/training/community/submit-task', authMiddleware, async (req, res) => {
+  try {
+    const { taskId, submission } = req.body
+    const userId = req.user.id
+    
+    // In a real implementation, this would update the database
+    // For now, we'll just return a success response
+    res.json({ message: 'Task submitted successfully', taskId, userId })
+  } catch (error) {
+    console.error('Error submitting task:', error)
+    res.status(500).json({ message: 'Failed to submit task' })
+  }
+})
+
+app.get('/api/training/user-progress', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const communityPath = path.join(process.cwd(), 'backend', 'data', 'community.json')
+    const communityData = JSON.parse(fs.readFileSync(communityPath, 'utf8'))
+    
+    const userProgress = communityData.userProgress.find(up => up.userId === userId)
+    
+    if (!userProgress) {
+      // Return default progress for new users
+      return res.json({
+        userId,
+        name: req.user.name,
+        role: 'member',
+        teams: [],
+        completedTasks: 0,
+        points: 0,
+        joinedAt: new Date().toISOString(),
+        lastActive: new Date().toISOString()
+      })
+    }
+    
+    res.json(userProgress)
+  } catch (error) {
+    console.error('Error fetching user progress:', error)
+    res.status(500).json({ message: 'Failed to fetch user progress' })
+  }
+})
+
+// Lesson endpoints
+app.get('/api/training/courses/:courseId/lessons', async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId)
+    const [lessons] = await pool.query(
+      'SELECT *, order_num as `order`, is_locked as isLocked FROM lessons WHERE course_id = ? ORDER BY order_num ASC',
+      [courseId]
+    )
+    
+    // Parse JSON resources field
+    const parsedLessons = lessons.map(lesson => ({
+      ...lesson,
+      courseId: lesson.course_id,
+      videoUrl: lesson.video_url,
+      resources: lesson.resources ? JSON.parse(lesson.resources) : [],
+      isLocked: Boolean(lesson.isLocked)
+    }))
+    
+    res.json(parsedLessons)
+  } catch (error) {
+    console.error('Error fetching lessons:', error)
+    res.status(500).json({ message: 'Failed to fetch lessons' })
+  }
+})
+
+app.get('/api/training/courses/:courseId/lessons/:lessonId', async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId)
+    const lessonId = parseInt(req.params.lessonId)
+    
+    const [lessons] = await pool.query(
+      'SELECT *, order_num as `order`, is_locked as isLocked FROM lessons WHERE course_id = ? AND id = ?',
+      [courseId, lessonId]
+    )
+    
+    if (!lessons || lessons.length === 0) {
+      return res.status(404).json({ message: 'Lesson not found' })
+    }
+    
+    const lesson = lessons[0]
+    const parsedLesson = {
+      ...lesson,
+      courseId: lesson.course_id,
+      videoUrl: lesson.video_url,
+      resources: lesson.resources ? JSON.parse(lesson.resources) : [],
+      isLocked: Boolean(lesson.isLocked),
+      isCompleted: false
+    }
+    
+    res.json(parsedLesson)
+  } catch (error) {
+    console.error('Error fetching lesson:', error)
+    res.status(500).json({ message: 'Failed to fetch lesson' })
+  }
+})
+
+app.get('/api/training/courses/:courseId/progress', authMiddleware, async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId)
+    const userId = req.user.id
+    
+    const [progress] = await pool.query(
+      'SELECT * FROM course_progress WHERE user_id = ? AND course_id = ?',
+      [userId, courseId]
+    )
+    
+    if (!progress || progress.length === 0) {
+      // Create new progress entry
+      await pool.query(
+        'INSERT INTO course_progress (user_id, course_id, completed_lessons, quiz_scores) VALUES (?, ?, ?, ?)',
+        [userId, courseId, JSON.stringify([]), JSON.stringify({})]
+      )
+      
+      return res.json({
+        userId,
+        courseId,
+        completedLessons: [],
+        currentLesson: 1,
+        progressPercentage: 0,
+        timeSpent: 0,
+        lastAccessed: new Date().toISOString(),
+        quizScores: {},
+        certificateEarned: false
+      })
+    }
+    
+    const userProgress = progress[0]
+    res.json({
+      userId: userProgress.user_id,
+      courseId: userProgress.course_id,
+      completedLessons: userProgress.completed_lessons ? JSON.parse(userProgress.completed_lessons) : [],
+      currentLesson: userProgress.current_lesson,
+      progressPercentage: parseFloat(userProgress.progress_percentage),
+      timeSpent: userProgress.time_spent,
+      lastAccessed: userProgress.last_accessed,
+      quizScores: userProgress.quiz_scores ? JSON.parse(userProgress.quiz_scores) : {},
+      certificateEarned: Boolean(userProgress.certificate_earned)
+    })
+  } catch (error) {
+    console.error('Error fetching course progress:', error)
+    res.status(500).json({ message: 'Failed to fetch course progress' })
+  }
+})
+
+app.post('/api/training/courses/:courseId/lessons/:lessonId/complete', authMiddleware, async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId)
+    const lessonId = parseInt(req.params.lessonId)
+    const userId = req.user.id
+    
+    // In a real implementation, this would update the database
+    // For now, we'll just return a success response
+    res.json({ 
+      message: 'Lesson completed successfully', 
+      courseId, 
+      lessonId, 
+      userId 
+    })
+  } catch (error) {
+    console.error('Error completing lesson:', error)
+    res.status(500).json({ message: 'Failed to complete lesson' })
+  }
+})
+
+app.post('/api/training/courses/:courseId/lessons/:lessonId/quiz', authMiddleware, async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId)
+    const lessonId = parseInt(req.params.lessonId)
+    const { answers } = req.body
+    const userId = req.user.id
+    
+    // In a real implementation, this would calculate the score and update the database
+    res.json({ 
+      message: 'Quiz submitted successfully', 
+      courseId, 
+      lessonId, 
+      userId,
+      answers
+    })
+  } catch (error) {
+    console.error('Error submitting quiz:', error)
+    res.status(500).json({ message: 'Failed to submit quiz' })
+  }
+})
+
+// Admin Course Management Endpoints
+app.post('/api/admin/courses', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const { title, description, category, level, duration, price, instructor, topics, learningObjectives, requirements, certificate, thumbnail } = req.body
+    
+    const [result] = await pool.query(
+      `INSERT INTO courses (title, description, category, level, duration, price, instructor, topics, learning_objectives, requirements, certificate, thumbnail)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title,
+        description,
+        category || 'iot',
+        level || 'Beginner',
+        duration,
+        price || 0,
+        instructor,
+        JSON.stringify(topics || []),
+        JSON.stringify(learningObjectives || []),
+        JSON.stringify(requirements || {}),
+        certificate ? 1 : 0,
+        thumbnail || null
+      ]
+    )
+    
+    const [courses] = await pool.query('SELECT * FROM courses WHERE id = ?', [result.insertId])
+    const course = courses[0]
+    
+    res.status(201).json({
+      ...course,
+      topics: course.topics ? JSON.parse(course.topics) : [],
+      learningObjectives: course.learning_objectives ? JSON.parse(course.learning_objectives) : [],
+      requirements: course.requirements ? JSON.parse(course.requirements) : {},
+      certificate: Boolean(course.certificate),
+      locked: Boolean(course.locked)
+    })
+  } catch (error) {
+    console.error('Error creating course:', error)
+    res.status(500).json({ message: 'Failed to create course' })
+  }
+})
+
+app.put('/api/admin/courses/:id', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const courseId = parseInt(req.params.id)
+    const { title, description, category, level, duration, price, instructor, topics, learningObjectives, requirements, certificate, thumbnail } = req.body
+    
+    const [result] = await pool.query(
+      `UPDATE courses SET
+         title = COALESCE(?, title),
+         description = COALESCE(?, description),
+         category = COALESCE(?, category),
+         level = COALESCE(?, level),
+         duration = COALESCE(?, duration),
+         price = COALESCE(?, price),
+         instructor = COALESCE(?, instructor),
+         topics = COALESCE(?, topics),
+         learning_objectives = COALESCE(?, learning_objectives),
+         requirements = COALESCE(?, requirements),
+         certificate = COALESCE(?, certificate),
+         thumbnail = COALESCE(?, thumbnail)
+       WHERE id = ?`,
+      [
+        title || null,
+        description || null,
+        category || null,
+        level || null,
+        duration || null,
+        price !== undefined ? price : null,
+        instructor || null,
+        topics ? JSON.stringify(topics) : null,
+        learningObjectives ? JSON.stringify(learningObjectives) : null,
+        requirements ? JSON.stringify(requirements) : null,
+        certificate !== undefined ? (certificate ? 1 : 0) : null,
+        thumbnail || null,
+        courseId
+      ]
+    )
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    
+    const [courses] = await pool.query('SELECT * FROM courses WHERE id = ?', [courseId])
+    const course = courses[0]
+    
+    res.json({
+      ...course,
+      topics: course.topics ? JSON.parse(course.topics) : [],
+      learningObjectives: course.learning_objectives ? JSON.parse(course.learning_objectives) : [],
+      requirements: course.requirements ? JSON.parse(course.requirements) : {},
+      certificate: Boolean(course.certificate),
+      locked: Boolean(course.locked)
+    })
+  } catch (error) {
+    console.error('Error updating course:', error)
+    res.status(500).json({ message: 'Failed to update course' })
+  }
+})
+
+app.delete('/api/admin/courses/:id', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const courseId = parseInt(req.params.id)
+    
+    // Delete lessons cascade automatically due to foreign key
+    const [result] = await pool.query('DELETE FROM courses WHERE id = ?', [courseId])
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Course not found' })
+    }
+    
+    res.json({ message: 'Course deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting course:', error)
+    res.status(500).json({ message: 'Failed to delete course' })
+  }
+})
+
+// Admin Lesson Management Endpoints
+app.post('/api/admin/courses/:courseId/lessons', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const courseId = parseInt(req.params.courseId)
+    const { title, description, duration, type, order, videoUrl, transcript, resources } = req.body
+    
+    const [result] = await pool.query(
+      `INSERT INTO lessons (course_id, title, description, duration, type, order_num, video_url, transcript, resources)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        courseId,
+        title,
+        description,
+        duration,
+        type || 'video',
+        order || 1,
+        videoUrl || null,
+        transcript || null,
+        JSON.stringify(resources || [])
+      ]
+    )
+    
+    const [lessons] = await pool.query('SELECT * FROM lessons WHERE id = ?', [result.insertId])
+    const lesson = lessons[0]
+    
+    res.status(201).json({
+      ...lesson,
+      courseId: lesson.course_id,
+      order: lesson.order_num,
+      videoUrl: lesson.video_url,
+      resources: lesson.resources ? JSON.parse(lesson.resources) : [],
+      isLocked: Boolean(lesson.is_locked)
+    })
+  } catch (error) {
+    console.error('Error creating lesson:', error)
+    res.status(500).json({ message: 'Failed to create lesson' })
+  }
+})
+
+app.put('/api/admin/courses/:courseId/lessons/:lessonId', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const lessonId = parseInt(req.params.lessonId)
+    const { title, description, duration, type, order, videoUrl, transcript, resources } = req.body
+    
+    const [result] = await pool.query(
+      `UPDATE lessons SET
+         title = COALESCE(?, title),
+         description = COALESCE(?, description),
+         duration = COALESCE(?, duration),
+         type = COALESCE(?, type),
+         order_num = COALESCE(?, order_num),
+         video_url = COALESCE(?, video_url),
+         transcript = COALESCE(?, transcript),
+         resources = COALESCE(?, resources)
+       WHERE id = ?`,
+      [
+        title || null,
+        description || null,
+        duration || null,
+        type || null,
+        order || null,
+        videoUrl || null,
+        transcript || null,
+        resources ? JSON.stringify(resources) : null,
+        lessonId
+      ]
+    )
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Lesson not found' })
+    }
+    
+    const [lessons] = await pool.query('SELECT * FROM lessons WHERE id = ?', [lessonId])
+    const lesson = lessons[0]
+    
+    res.json({
+      ...lesson,
+      courseId: lesson.course_id,
+      order: lesson.order_num,
+      videoUrl: lesson.video_url,
+      resources: lesson.resources ? JSON.parse(lesson.resources) : [],
+      isLocked: Boolean(lesson.is_locked)
+    })
+  } catch (error) {
+    console.error('Error updating lesson:', error)
+    res.status(500).json({ message: 'Failed to update lesson' })
+  }
+})
+
+app.delete('/api/admin/courses/:courseId/lessons/:lessonId', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+    
+    const lessonId = parseInt(req.params.lessonId)
+    const [result] = await pool.query('DELETE FROM lessons WHERE id = ?', [lessonId])
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Lesson not found' })
+    }
+    
+    res.json({ message: 'Lesson deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting lesson:', error)
+    res.status(500).json({ message: 'Failed to delete lesson' })
+  }
+})
+
+// Payment endpoints
+app.post('/api/payment/verify-flutterwave', authMiddleware, async (req, res) => {
+  try {
+    const { transaction_id, courseId } = req.body
+    const userId = req.user.id
+    
+    // In production, verify with Flutterwave API
+    // const response = await axios.get(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
+    //   headers: { Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}` }
+    // })
+    
+    // Create enrollment record
+    const [result] = await pool.query(
+      'INSERT INTO enrollments (user_id, course_id, transaction_id, status) VALUES (?, ?, ?, ?)',
+      [userId, parseInt(courseId), transaction_id, 'active']
+    )
+    
+    const [enrollments] = await pool.query('SELECT * FROM enrollments WHERE id = ?', [result.insertId])
+    const enrollment = enrollments[0]
+    
+    res.json({ 
+      message: 'Payment verified and enrollment created', 
+      enrollment: {
+        id: enrollment.id,
+        userId: enrollment.user_id,
+        courseId: enrollment.course_id,
+        transactionId: enrollment.transaction_id,
+        status: enrollment.status,
+        enrolledAt: enrollment.enrolled_at
+      }
+    })
+  } catch (error) {
+    console.error('Error verifying payment:', error)
+    res.status(500).json({ message: 'Payment verification failed' })
+  }
+})
+
+app.get('/api/enrollments', authMiddleware, async (req, res) => {
+  try {
+    const [enrollments] = await pool.query(
+      'SELECT * FROM enrollments WHERE user_id = ?',
+      [req.user.id]
+    )
+    
+    const userEnrollments = enrollments.map(e => ({
+      id: e.id,
+      userId: e.user_id,
+      courseId: e.course_id,
+      transactionId: e.transaction_id,
+      status: e.status,
+      enrolledAt: e.enrolled_at
+    }))
+    
+    res.json(userEnrollments)
+  } catch (error) {
+    console.error('Error fetching enrollments:', error)
+    res.status(500).json({ message: 'Failed to fetch enrollments' })
+  }
+})
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
 })
-

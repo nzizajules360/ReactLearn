@@ -1,0 +1,203 @@
+[
+  {
+    "id": 1,
+    "title": "IoT Fundamentals",
+    "description": "Learn the basics of IoT, sensors, and smart device development",
+    "category": "iot",
+    "level": "Beginner",
+    "duration": "6 weeks",
+    "lessons": 24,
+    "students": 1247,
+    "rating": 4.8,
+    "price": 29,
+    "image": "iot-basics",
+    "instructor": "Dr. Sarah Chen",
+    "instructorId": "inst_001",
+    "progress": 0,
+    "locked": false,
+    "topics": ["Arduino Basics", "Sensor Integration", "IoT Protocols", "Cloud Connectivity"],
+    "certificate": true,
+    "createdAt": "2024-01-15T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": [],
+      "materials": ["Arduino Uno", "Basic sensors", "Breadboard", "Jumper wires"],
+      "software": ["Arduino IDE", "Processing"]
+    },
+    "learningObjectives": [
+      "Understand IoT concepts and architecture",
+      "Program Arduino microcontrollers",
+      "Interface with various sensors",
+      "Connect devices to cloud platforms"
+    ]
+  },
+  {
+    "id": 2,
+    "title": "EcoSwarm Platform Mastery",
+    "description": "Master all tools and features of the EcoSwarm ecosystem",
+    "category": "tools",
+    "level": "Intermediate",
+    "duration": "4 weeks",
+    "lessons": 18,
+    "students": 892,
+    "rating": 4.9,
+    "price": 39,
+    "image": "ecoswarm-tools",
+    "instructor": "Alex Rivera",
+    "instructorId": "inst_002",
+    "progress": 0,
+    "locked": false,
+    "topics": ["Device Management", "Data Analytics", "Automation", "API Integration"],
+    "certificate": true,
+    "createdAt": "2024-02-01T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": ["IoT Fundamentals"],
+      "materials": ["Computer with internet access"],
+      "software": ["EcoSwarm Platform", "Postman", "Git"]
+    },
+    "learningObjectives": [
+      "Navigate EcoSwarm platform efficiently",
+      "Manage IoT devices remotely",
+      "Analyze sensor data",
+      "Create automation workflows",
+      "Integrate with external APIs"
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Advanced IoT Systems",
+    "description": "Build complex IoT systems with edge computing and ML",
+    "category": "advanced",
+    "level": "Advanced",
+    "duration": "8 weeks",
+    "lessons": 32,
+    "students": 456,
+    "rating": 4.7,
+    "price": 49,
+    "image": "advanced-iot",
+    "instructor": "Prof. Michael Kumar",
+    "instructorId": "inst_003",
+    "progress": 0,
+    "locked": true,
+    "requiresPlan": "pro",
+    "topics": ["Edge Computing", "Machine Learning", "Security", "Large-scale Deployment"],
+    "certificate": true,
+    "createdAt": "2024-03-01T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": ["IoT Fundamentals", "Programming experience"],
+      "materials": ["Raspberry Pi", "Advanced sensors", "Cloud account"],
+      "software": ["Python", "TensorFlow Lite", "Docker", "Kubernetes"]
+    },
+    "learningObjectives": [
+      "Implement edge computing solutions",
+      "Deploy ML models on IoT devices",
+      "Secure IoT communications",
+      "Scale IoT deployments"
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Smart Home Development",
+    "description": "Create connected home systems using IoT technologies",
+    "category": "iot",
+    "level": "Intermediate",
+    "duration": "5 weeks",
+    "lessons": 20,
+    "students": 723,
+    "rating": 4.6,
+    "price": 35,
+    "image": "smart-home",
+    "instructor": "Emma Wilson",
+    "instructorId": "inst_004",
+    "progress": 0,
+    "locked": false,
+    "topics": ["Home Automation", "Voice Control", "Energy Management", "Security Systems"],
+    "certificate": true,
+    "createdAt": "2024-04-01T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": ["IoT Fundamentals"],
+      "materials": ["Smart home devices", "Raspberry Pi", "Sensors"],
+      "software": ["Home Assistant", "Node-RED", "MQTT client"]
+    },
+    "learningObjectives": [
+      "Design smart home architectures",
+      "Implement voice control systems",
+      "Monitor and manage energy consumption",
+      "Create security automation"
+    ]
+  },
+  {
+    "id": 5,
+    "title": "IoT Security Fundamentals",
+    "description": "Learn essential security practices for IoT deployments",
+    "category": "advanced",
+    "level": "Advanced",
+    "duration": "6 weeks",
+    "lessons": 22,
+    "students": 312,
+    "rating": 4.8,
+    "price": 45,
+    "image": "iot-security",
+    "instructor": "David Park",
+    "instructorId": "inst_005",
+    "progress": 0,
+    "locked": true,
+    "requiresPlan": "premium",
+    "topics": ["Encryption", "Network Security", "Device Hardening", "Threat Detection"],
+    "certificate": true,
+    "createdAt": "2024-05-01T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": ["IoT Fundamentals", "Networking basics"],
+      "materials": ["Test devices", "Network equipment"],
+      "software": ["Wireshark", "OpenSSL", "Security tools"]
+    },
+    "learningObjectives": [
+      "Identify IoT security vulnerabilities",
+      "Implement encryption protocols",
+      "Secure network communications",
+      "Monitor and detect threats"
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Device Simulation Workshop",
+    "description": "Practice with virtual IoT devices in our workspace",
+    "category": "tools",
+    "level": "Beginner",
+    "duration": "3 weeks",
+    "lessons": 12,
+    "students": 1567,
+    "rating": 4.9,
+    "price": 25,
+    "image": "device-sim",
+    "instructor": "Lisa Thompson",
+    "instructorId": "inst_006",
+    "progress": 0,
+    "locked": false,
+    "topics": ["Virtual Devices", "Simulation Tools", "Testing Methods", "Debugging"],
+    "certificate": false,
+    "createdAt": "2024-06-01T00:00:00Z",
+    "updatedAt": "2024-11-30T00:00:00Z",
+    "status": "active",
+    "requirements": {
+      "prerequisites": [],
+      "materials": ["Computer with internet access"],
+      "software": ["EcoSwarm Workspace", "Simulation software"]
+    },
+    "learningObjectives": [
+      "Use virtual IoT devices",
+      "Test code without hardware",
+      "Debug IoT applications",
+      "Validate system designs"
+    ]
+  }
+]

@@ -28,8 +28,8 @@ function Footer() {
           {/* Company Info */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-lime-400 to-emerald-600 rounded-xl flex items-center justify-center">
-                <Sprout className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-lime-100 to-emerald-100 rounded-xl flex items-center justify-center">
+                <img src="/logo.svg" alt="EcoSwarm" className="w-6 h-6" />
               </div>
               <h3 className="text-lime-300 font-bold text-2xl">EcoSwarm</h3>
             </div>
@@ -55,7 +55,7 @@ function Footer() {
                 </svg>
               </a>
               <a 
-                href="#" 
+                href="https://www.instagram.com/nziza__202/" 
                 className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-emerald-400 transition-all duration-300 transform hover:scale-110 hover:-translate-y-1"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

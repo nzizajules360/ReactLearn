@@ -1,0 +1,52 @@
+{
+  "overview": {
+    "activeStudents": 2547,
+    "totalCourses": 24,
+    "communityTeams": 89,
+    "successRate": 94,
+    "lastUpdated": "2024-11-30T00:00:00Z"
+  },
+  "courses": {
+    "total": 24,
+    "byCategory": {
+      "iot": 8,
+      "tools": 6,
+      "advanced": 6,
+      "security": 4
+    },
+    "byLevel": {
+      "Beginner": 10,
+      "Intermediate": 8,
+      "Advanced": 6
+    },
+    "averageRating": 4.7,
+    "totalLessons": 156,
+    "totalStudents": 5197
+  },
+  "community": {
+    "totalTeams": 89,
+    "activeTeams": 67,
+    "totalMembers": 1256,
+    "totalTasks": 234,
+    "completedTasks": 189,
+    "averageTeamSize": 14
+  },
+  "engagement": {
+    "monthlyActiveUsers": 1847,
+    "courseCompletionRate": 78,
+    "averageSessionDuration": 45,
+    "totalLearningHours": 15678,
+    "certificatesIssued": 892
+  },
+  "revenue": {
+    "monthlyRevenue": 12450,
+    "yearlyRevenue": 149400,
+    "activeSubscriptions": {
+      "free": 1256,
+      "pro": 445,
+      "premium": 123
+    },
+    "courseSales": 89,
+    "communitySubscriptions": 67
+  }
+}

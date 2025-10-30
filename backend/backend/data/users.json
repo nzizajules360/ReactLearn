@@ -4,7 +4,7 @@
     "name": "Nziza Jules",
     "email": "nzizajules202@gmail.com",
     "passwordHash": "$2b$10$8TKXcsExQJONJDS9uzkEk.pwPffluoF.wyTkM5AqN0M1dYFoGTnoe",
-    "role": "user",
+    "role": "admin",
     "profile": {
       "phone": "",
       "location": "",

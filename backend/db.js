@@ -176,6 +176,113 @@ export async function initDb() {
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1024) DEFAULT NULL`)
   } catch (_) {}
+
+  // Training/Course tables
+  await pool.query(`CREATE TABLE IF NOT EXISTS courses (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    level ENUM('Beginner','Intermediate','Advanced') NOT NULL DEFAULT 'Beginner',
+    duration VARCHAR(100) NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    instructor VARCHAR(255) NOT NULL,
+    topics JSON DEFAULT NULL,
+    learning_objectives JSON DEFAULT NULL,
+    requirements JSON DEFAULT NULL,
+    certificate TINYINT(1) NOT NULL DEFAULT 1,
+    thumbnail VARCHAR(1024) DEFAULT NULL,
+    students INT NOT NULL DEFAULT 0,
+    rating DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+    lessons_count INT NOT NULL DEFAULT 0,
+    locked TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_category (category),
+    INDEX idx_level (level)
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS lessons (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    course_id BIGINT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    duration VARCHAR(100) NOT NULL,
+    type ENUM('video','reading','project','quiz') NOT NULL DEFAULT 'video',
+    order_num INT NOT NULL DEFAULT 1,
+    video_url VARCHAR(1024) DEFAULT NULL,
+    transcript TEXT DEFAULT NULL,
+    resources JSON DEFAULT NULL,
+    is_locked TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    INDEX idx_course_order (course_id, order_num)
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS enrollments (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    course_id BIGINT NOT NULL,
+    transaction_id VARCHAR(255) DEFAULT NULL,
+    status ENUM('active','completed','cancelled') NOT NULL DEFAULT 'active',
+    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_user_course (user_id, course_id),
+    INDEX idx_user (user_id),
+    INDEX idx_status (status)
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS course_progress (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    course_id BIGINT NOT NULL,
+    completed_lessons JSON DEFAULT NULL,
+    current_lesson INT DEFAULT 1,
+    progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    time_spent INT NOT NULL DEFAULT 0,
+    quiz_scores JSON DEFAULT NULL,
+    certificate_earned TINYINT(1) NOT NULL DEFAULT 0,
+    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_user_course_progress (user_id, course_id)
+  )`)
+
+  // Community tables
+  await pool.query(`CREATE TABLE IF NOT EXISTS community_teams (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    members INT NOT NULL DEFAULT 0,
+    active_projects INT NOT NULL DEFAULT 0,
+    description TEXT DEFAULT NULL,
+    image VARCHAR(1024) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS community_tasks (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    team_id BIGINT DEFAULT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT NULL,
+    difficulty ENUM('Beginner','Intermediate','Advanced') NOT NULL DEFAULT 'Beginner',
+    points INT NOT NULL DEFAULT 0,
+    time_estimate VARCHAR(100) DEFAULT NULL,
+    requirements TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES community_teams(id) ON DELETE SET NULL
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS training_stats (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    total_students INT NOT NULL DEFAULT 0,
+    courses_completed INT NOT NULL DEFAULT 0,
+    avg_rating DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+    certificates_issued INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )`)
 }
 
 export async function seedDashboardForUser(userId) {

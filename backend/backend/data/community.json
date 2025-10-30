@@ -1,0 +1,185 @@
+{
+  "teams": [
+    {
+      "id": "team1",
+      "name": "IoT Innovators",
+      "description": "Building smart home solutions and IoT devices",
+      "members": 24,
+      "maxMembers": 30,
+      "leader": "Sarah Chen",
+      "leaderId": "user_001",
+      "avatar": "iot-innovators",
+      "category": "IoT Development",
+      "difficulty": "Intermediate",
+      "tasksCompleted": 47,
+      "activeTasks": 5,
+      "joinStatus": "available",
+      "weeklyGoal": 8,
+      "currentProgress": 5,
+      "tags": ["Smart Home", "Sensors", "Arduino"],
+      "createdAt": "2024-01-15T00:00:00Z",
+      "updatedAt": "2024-11-30T00:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "team2",
+      "name": "EcoSwarm Masters",
+      "description": "Mastering the EcoSwarm platform and tools",
+      "members": 18,
+      "maxMembers": 25,
+      "leader": "Alex Rivera",
+      "leaderId": "user_002",
+      "avatar": "ecoswarm-masters",
+      "category": "Platform Training",
+      "difficulty": "Beginner",
+      "tasksCompleted": 32,
+      "activeTasks": 3,
+      "joinStatus": "available",
+      "weeklyGoal": 6,
+      "currentProgress": 4,
+      "tags": ["Platform", "Tools", "API"],
+      "createdAt": "2024-02-01T00:00:00Z",
+      "updatedAt": "2024-11-30T00:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "team3",
+      "name": "AI IoT Integration",
+      "description": "Integrating AI with IoT systems for smart solutions",
+      "members": 15,
+      "maxMembers": 20,
+      "leader": "Dr. Michael Kumar",
+      "leaderId": "user_003",
+      "avatar": "ai-iot",
+      "category": "Advanced IoT",
+      "difficulty": "Advanced",
+      "tasksCompleted": 28,
+      "activeTasks": 4,
+      "joinStatus": "available",
+      "weeklyGoal": 10,
+      "currentProgress": 7,
+      "tags": ["AI", "Machine Learning", "Edge Computing"],
+      "createdAt": "2024-03-01T00:00:00Z",
+      "updatedAt": "2024-11-30T00:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "team4",
+      "name": "Security Experts",
+      "description": "Focus on IoT security and best practices",
+      "members": 20,
+      "maxMembers": 20,
+      "leader": "David Park",
+      "leaderId": "user_004",
+      "avatar": "security",
+      "category": "Security",
+      "difficulty": "Advanced",
+      "tasksCompleted": 41,
+      "activeTasks": 6,
+      "joinStatus": "full",
+      "weeklyGoal": 8,
+      "currentProgress": 8,
+      "tags": ["Security", "Encryption", "Network"],
+      "createdAt": "2024-04-01T00:00:00Z",
+      "updatedAt": "2024-11-30T00:00:00Z",
+      "status": "active"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task1",
+      "title": "Build a Temperature Monitoring System",
+      "description": "Create an IoT device that monitors temperature and sends alerts",
+      "teamId": "team1",
+      "teamName": "IoT Innovators",
+      "difficulty": "Intermediate",
+      "points": 50,
+      "deadline": "2024-12-15T23:59:59Z",
+      "submissions": 8,
+      "maxSubmissions": 12,
+      "status": "active",
+      "createdBy": "user_001",
+      "createdAt": "2024-11-01T00:00:00Z",
+      "requirements": [
+        "Use Arduino or similar microcontroller",
+        "Implement temperature sensor",
+        "Add cloud connectivity",
+        "Create alert system"
+      ],
+      "resources": [
+        { "name": "Arduino Tutorial", "type": "video", "url": "/resources/arduino-tutorial" },
+        { "name": "Sensor Documentation", "type": "pdf", "url": "/resources/sensor-docs" },
+        { "name": "Sample Code", "type": "github", "url": "/resources/sample-code" }
+      ]
+    },
+    {
+      "id": "task2",
+      "title": "EcoSwarm API Integration",
+      "description": "Integrate a third-party service with EcoSwarm APIs",
+      "teamId": "team2",
+      "teamName": "EcoSwarm Masters",
+      "difficulty": "Beginner",
+      "points": 30,
+      "deadline": "2024-12-10T23:59:59Z",
+      "submissions": 15,
+      "maxSubmissions": 18,
+      "status": "active",
+      "createdBy": "user_002",
+      "createdAt": "2024-11-05T00:00:00Z",
+      "requirements": [
+        "Set up API authentication",
+        "Create data pipeline",
+        "Implement error handling",
+        "Document integration"
+      ],
+      "resources": [
+        { "name": "API Documentation", "type": "docs", "url": "/resources/api-docs" },
+        { "name": "Authentication Guide", "type": "video", "url": "/resources/auth-guide" }
+      ]
+    },
+    {
+      "id": "task3",
+      "title": "Implement Security Best Practices",
+      "description": "Apply security measures to an existing IoT system",
+      "teamId": "team4",
+      "teamName": "Security Experts",
+      "difficulty": "Advanced",
+      "points": 75,
+      "deadline": "2024-12-20T23:59:59Z",
+      "submissions": 5,
+      "maxSubmissions": 15,
+      "status": "active",
+      "createdBy": "user_004",
+      "createdAt": "2024-11-10T00:00:00Z",
+      "requirements": [
+        "Conduct security audit",
+        "Implement encryption",
+        "Set up access controls",
+        "Create security documentation"
+      ],
+      "resources": [
+        { "name": "Security Checklist", "type": "pdf", "url": "/resources/security-checklist" },
+        { "name": "Encryption Tutorial", "type": "video", "url": "/resources/encryption-tutorial" }
+      ]
+    }
+  ],
+  "leaderboard": [
+    { "rank": 1, "name": "Sarah Chen", "points": 2450, "tasksCompleted": 45, "team": "IoT Innovators", "userId": "user_001" },
+    { "rank": 2, "name": "Alex Rivera", "points": 2380, "tasksCompleted": 42, "team": "EcoSwarm Masters", "userId": "user_002" },
+    { "rank": 3, "name": "Emma Wilson", "points": 2290, "tasksCompleted": 40, "team": "AI IoT Integration", "userId": "user_003" },
+    { "rank": 4, "name": "Michael Kumar", "points": 2150, "tasksCompleted": 38, "team": "Security Experts", "userId": "user_004" },
+    { "rank": 5, "name": "John Doe", "points": 850, "tasksCompleted": 12, "team": "IoT Innovators", "userId": "user_005" }
+  ],
+  "userProgress": [
+    {
+      "userId": "user_005",
+      "name": "John Doe",
+      "role": "member",
+      "teams": ["team1", "team2"],
+      "completedTasks": 12,
+      "points": 850,
+      "joinedAt": "2024-10-01T00:00:00Z",
+      "lastActive": "2024-11-30T00:00:00Z"
+    }
+  ]
+}
