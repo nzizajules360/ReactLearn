@@ -14,6 +14,7 @@ import {
 import { Sprout } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import GrassBlurCard from '../../components/GrassBlurCard';
+import NotificationsPermission from '../../components/NotificationsPermission';
 import { useNavigate, Link } from 'react-router-dom';
 
 function Dashboard() {
@@ -208,6 +209,9 @@ function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* Notification Permission Prompt */}
+        <NotificationsPermission />
 
         {/* Error */}
         {error && (

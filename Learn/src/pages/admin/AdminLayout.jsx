@@ -14,8 +14,10 @@ function AdminLayout() {
             {[
               { to: '/admin', label: 'Overview', end: true },
               { to: '/admin/users', label: 'Users' },
-              { to: '/admin/reports', label: 'Reports' },
+              { to: '/admin/metrics', label: 'Metrics' },
+              { to: '/admin/contacts', label: 'Contacts' },
               { to: '/admin/notifications', label: 'Notifications' },
+              { to: '/admin/reports', label: 'Reports' },
             ].map((item) => (
               <NavLink
                 key={item.to}

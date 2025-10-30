@@ -21,6 +21,14 @@ import AssistantPage from './pages/dashboard/AssistantPage.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import UsersPage from './pages/admin/UsersPage.jsx'
+import NotificationsPage from './pages/admin/NotificationsPage.jsx'
+import ContactsPage from './pages/admin/ContactsPage.jsx'
+import MetricsPage from './pages/admin/MetricsPage.jsx'
+import ReportsPage from './pages/admin/ReportsPage.jsx'
+import ChatLayout from './pages/chat/ChatLayout.jsx'
+import ChatListPage from './pages/chat/ChatListPage.jsx'
+import ChatRoomPage from './pages/chat/ChatRoomPage.jsx'
+import NewChatPage from './pages/chat/NewChatPage.jsx'
 
 // Auth Context
 import { useAuth } from './context/AuthContext.jsx'
@@ -183,6 +191,17 @@ function App() {
           <Route path="calendar" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Calendar Page - Coming Soon</h1></div>} />
         </Route>
 
+        {/* Chat - Protected */}
+        <Route path="/chat" element={
+          <ProtectedRoute>
+            <ChatLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<ChatListPage />} />
+          <Route path=":chatId" element={<ChatRoomPage />} />
+          <Route path="new" element={<NewChatPage />} />
+        </Route>
+
         {/* Admin Routes - Only admin users */}
         <Route path="/admin" element={
           <AdminRoute>
@@ -191,8 +210,10 @@ function App() {
         }>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UsersPage />} />
-          <Route path="reports" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">System Reports - Coming Soon</h1></div>} />
-          <Route path="notifications" element={<div className="p-8"><h1 className="text-2xl font-bold text-emerald-900">Notifications Admin - Coming Soon</h1></div>} />
+          <Route path="metrics" element={<MetricsPage />} />
+          <Route path="contacts" element={<ContactsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
         </Route>
 
         {/* Catch all route */}

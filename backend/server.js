@@ -195,6 +195,7 @@ app.post('/api/contact', async (req, res) => {
 // --- IoT Sensor Streaming (SSE) ---
 const iotClients = new Map() // userId -> Set(res)
 const notifClients = new Map() // userId -> Set(res)
+const chatClients = new Map() // userId -> Set(res)
 
 function addIotClient(userId, res) {
   if (!iotClients.has(userId)) iotClients.set(userId, new Set())
@@ -222,6 +223,15 @@ async function broadcastNotification(userId, notification) {
   const set = notifClients.get(userId)
   if (!set) return
   const data = `data: ${JSON.stringify(notification)}\n\n`
+  for (const res of set) {
+    res.write(data)
+  }
+}
+
+async function broadcastChat(userId, message) {
+  const set = chatClients.get(userId)
+  if (!set) return
+  const data = `data: ${JSON.stringify(message)}\n\n`
   for (const res of set) {
     res.write(data)
   }
@@ -313,6 +323,121 @@ app.get('/api/notifications/stream', async (req, res) => {
   }
 })
 
+// --- Chat SSE stream ---
+app.get('/api/chat/stream', async (req, res) => {
+  try {
+    const token = req.query.token
+    if (!token) return res.status(401).end()
+    const payload = jwt.verify(token, JWT_SECRET)
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders?.()
+    if (!chatClients.has(payload.id)) chatClients.set(payload.id, new Set())
+    chatClients.get(payload.id).add(res)
+    req.on('close', () => {
+      const set = chatClients.get(payload.id)
+      if (set) {
+        set.delete(res)
+        if (set.size === 0) chatClients.delete(payload.id)
+      }
+      res.end()
+    })
+  } catch (e) {
+    return res.status(401).end()
+  }
+})
+
+// --- Chat endpoints ---
+app.get('/api/chat', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const [rows] = await pool.query(
+    `SELECT c.id, c.is_group, c.title,
+            GROUP_CONCAT(u.name SEPARATOR ', ') AS participants
+     FROM chats c
+     JOIN chat_participants p ON p.chat_id = c.id
+     JOIN users u ON u.id = p.user_id
+     WHERE c.id IN (SELECT chat_id FROM chat_participants WHERE user_id = ?)
+     GROUP BY c.id
+     ORDER BY c.id DESC LIMIT 200`,
+    [userId]
+  )
+  return res.json(rows)
+})
+
+app.post('/api/chat', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const { participantIds = [], title = null } = req.body || {}
+  const ids = Array.from(new Set(participantIds.map(Number).concat([userId]))).filter(Boolean)
+  if (ids.length < 2) return res.status(400).json({ message: 'At least one other participant required' })
+  const [result] = await pool.query('INSERT INTO chats (is_group, title, created_by) VALUES (?, ?, ?)', [Number(Boolean(title)), title, userId])
+  const chatId = result.insertId
+  const values = ids.map(() => '(?, ?)').join(',')
+  const params = ids.flatMap(uid => [chatId, uid])
+  await pool.query(`INSERT INTO chat_participants (chat_id, user_id) VALUES ${values}`, params)
+  return res.status(201).json({ id: chatId })
+})
+
+app.get('/api/chat/:chatId/messages', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const chatId = Number(req.params.chatId)
+  const [[member]] = await pool.query('SELECT 1 AS ok FROM chat_participants WHERE chat_id = ? AND user_id = ? LIMIT 1', [chatId, userId])
+  if (!member) return res.status(403).json({ message: 'Forbidden' })
+  const { limit = 100, offset = 0 } = req.query || {}
+  const [rows] = await pool.query(
+    `SELECT m.id, m.user_id, u.name AS user_name, m.type, m.body, m.attachment_url, m.created_at
+     FROM chat_messages m JOIN users u ON u.id = m.user_id
+     WHERE m.chat_id = ?
+     ORDER BY m.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [chatId, Number(limit), Number(offset)]
+  )
+  return res.json(rows)
+})
+
+app.post('/api/chat/:chatId/messages', authMiddleware, upload.single('attachment'), async (req, res) => {
+  const userId = req.user.id
+  const chatId = Number(req.params.chatId)
+  const [[member]] = await pool.query('SELECT 1 AS ok FROM chat_participants WHERE chat_id = ? AND user_id = ? LIMIT 1', [chatId, userId])
+  if (!member) return res.status(403).json({ message: 'Forbidden' })
+  const { body = '', type = 'text' } = req.body || {}
+  let attachmentUrl = null
+  if (req.file) {
+    attachmentUrl = `/uploads/${req.file.filename}`
+  }
+  const [result] = await pool.query(
+    'INSERT INTO chat_messages (chat_id, user_id, type, body, attachment_url) VALUES (?, ?, ?, ?, ?)',
+    [chatId, userId, type, body || null, attachmentUrl]
+  )
+  const [rows] = await pool.query(
+    `SELECT m.id, m.user_id, u.name AS user_name, m.type, m.body, m.attachment_url, m.created_at
+     FROM chat_messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?`,
+    [result.insertId]
+  )
+  const message = rows[0]
+  // broadcast to all participants
+  const [pRows] = await pool.query('SELECT user_id FROM chat_participants WHERE chat_id = ?', [chatId])
+  for (const p of pRows) {
+    await broadcastChat(p.user_id, { chat_id: chatId, message })
+  }
+  return res.status(201).json(message)
+})
+
+// Chat signaling for WebRTC
+app.post('/api/chat/:chatId/signal', authMiddleware, async (req, res) => {
+  const userId = req.user.id
+  const chatId = Number(req.params.chatId)
+  const [[member]] = await pool.query('SELECT 1 AS ok FROM chat_participants WHERE chat_id = ? AND user_id = ? LIMIT 1', [chatId, userId])
+  if (!member) return res.status(403).json({ message: 'Forbidden' })
+  const payload = req.body || {}
+  const [pRows] = await pool.query('SELECT user_id FROM chat_participants WHERE chat_id = ?', [chatId])
+  for (const p of pRows) {
+    if (Number(p.user_id) === Number(userId)) continue
+    await broadcastChat(p.user_id, { chat_id: chatId, type: 'webrtc', from: userId, signal: payload })
+  }
+  return res.json({ ok: true })
+})
+
 // --- AI Assistant (Gemini) ---
 app.post('/api/ai/chat', authMiddleware, async (req, res) => {
   if (!genAI) return res.status(500).json({ message: 'AI not configured' })
@@ -350,6 +475,92 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   if (!me || me.role !== 'admin') return res.status(403).json({ message: 'Forbidden' })
   const [users] = await pool.query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC LIMIT 200')
   return res.json(users)
+})
+
+// Admin: list all reports across users
+app.get('/api/admin/reports', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const [rows] = await pool.query('SELECT r.id, r.user_id, u.name AS user_name, r.name, r.config, r.created_at FROM reports r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC LIMIT 1000')
+  return res.json(rows)
+})
+
+// --- Admin helpers ---
+async function assertAdmin(req, res) {
+  const [meRows] = await pool.query('SELECT role FROM users WHERE id = ? LIMIT 1', [req.user.id])
+  const me = meRows[0]
+  if (!me || me.role !== 'admin') {
+    res.status(403).json({ message: 'Forbidden' })
+    return false
+  }
+  return true
+}
+
+// Admin: update user role
+app.post('/api/admin/users/:id/role', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const userId = Number(req.params.id)
+  const { role } = req.body || {}
+  if (!['user','admin'].includes(String(role))) return res.status(400).json({ message: 'Invalid role' })
+  await pool.query('UPDATE users SET role = ? WHERE id = ?', [role, userId])
+  const [rows] = await pool.query('SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1', [userId])
+  return res.json(rows[0] || { message: 'updated' })
+})
+
+// Admin: reset user password (set to provided or random; returns temp password once)
+app.post('/api/admin/users/:id/reset-password', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const userId = Number(req.params.id)
+  const { newPassword = '' } = req.body || {}
+  const temp = newPassword || Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+  const hash = await bcrypt.hash(temp, 10)
+  await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId])
+  return res.json({ message: 'password reset', tempPassword: newPassword ? undefined : temp })
+})
+
+// Admin: list contact messages
+app.get('/api/admin/contact-messages', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const [rows] = await pool.query('SELECT id, name, email, subject, message, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 1000')
+  return res.json(rows)
+})
+
+// Admin: system metrics
+app.get('/api/admin/metrics', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const [[usersCount]] = await pool.query('SELECT COUNT(*) AS c FROM users')
+  const [[notifCount]] = await pool.query('SELECT COUNT(*) AS c FROM notifications')
+  const [[sensorCount]] = await pool.query('SELECT COUNT(*) AS c FROM sensor_messages')
+  const [[projectsCount]] = await pool.query('SELECT COUNT(*) AS c FROM projects')
+  const [[activitiesCount]] = await pool.query('SELECT COUNT(*) AS c FROM activities')
+  return res.json({
+    users: usersCount.c,
+    notifications: notifCount.c,
+    sensorMessages: sensorCount.c,
+    projects: projectsCount.c,
+    activities: activitiesCount.c
+  })
+})
+
+// Admin: broadcast notification to all users
+app.post('/api/admin/notifications/broadcast', authMiddleware, async (req, res) => {
+  if (!(await assertAdmin(req, res))) return
+  const { title, body } = req.body || {}
+  if (!title || !body) return res.status(400).json({ message: 'title and body are required' })
+  try {
+    const [userRows] = await pool.query('SELECT id FROM users')
+    const userIds = userRows.map(u => u.id)
+    if (userIds.length === 0) return res.json({ message: 'no users' })
+    const values = userIds.map(() => '(?, ?, ?)').join(',')
+    const params = userIds.flatMap(id => [id, title, body])
+    await pool.query(`INSERT INTO notifications (user_id, title, body) VALUES ${values}`, params)
+    // Fetch last 1 for each? Instead, broadcast a generic object
+    for (const id of userIds) {
+      await broadcastNotification(id, { id: 0, title, body, is_read: 0, created_at: new Date().toISOString() })
+    }
+    return res.status(201).json({ message: 'broadcast sent', recipients: userIds.length })
+  } catch (e) {
+    return res.status(500).json({ message: 'Failed to broadcast' })
+  }
 })
 
 // --- Tasks (per-user) ---

@@ -107,6 +107,38 @@ export async function initDb() {
     INDEX idx_user_read_created (user_id, is_read, created_at)
   )`)
 
+  // Chat tables
+  await pool.query(`CREATE TABLE IF NOT EXISTS chats (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    is_group TINYINT(1) NOT NULL DEFAULT 0,
+    title VARCHAR(255) DEFAULT NULL,
+    created_by BIGINT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS chat_participants (
+    chat_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chat_id, user_id),
+    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`)
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS chat_messages (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    chat_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    type ENUM('text','image','video','file','audio') NOT NULL DEFAULT 'text',
+    body TEXT DEFAULT NULL,
+    attachment_url VARCHAR(1024) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_chat_created (chat_id, created_at)
+  )`)
+
   await pool.query(`CREATE TABLE IF NOT EXISTS tasks (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,

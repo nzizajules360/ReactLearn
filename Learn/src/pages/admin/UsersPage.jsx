@@ -5,6 +5,7 @@ function UsersPage() {
   const [users, setUsers] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -22,6 +23,46 @@ function UsersPage() {
     }
     load()
   }, [])
+
+  const updateRole = async (id, role) => {
+    try {
+      setSavingId(id)
+      const token = localStorage.getItem('ecoswarm_token')
+      const res = await fetch(`http://localhost:3001/api/admin/users/${id}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.message || 'Failed to update role')
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: data.role || role } : u))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingId(0)
+    }
+  }
+
+  const resetPassword = async (id) => {
+    const newPassword = window.prompt('Enter a new temporary password (leave blank to auto-generate):', '')
+    try {
+      setSavingId(id)
+      const token = localStorage.getItem('ecoswarm_token')
+      const res = await fetch(`http://localhost:3001/api/admin/users/${id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword: newPassword || undefined })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.message || 'Failed to reset password')
+      const shown = newPassword || data?.tempPassword
+      if (shown) alert(`Temporary password: ${shown}`)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSavingId(0)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -42,6 +83,7 @@ function UsersPage() {
                   <th className="px-4 py-2 text-emerald-900">Email</th>
                   <th className="px-4 py-2 text-emerald-900">Role</th>
                   <th className="px-4 py-2 text-emerald-900">Created</th>
+                  <th className="px-4 py-2 text-emerald-900">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -51,9 +93,26 @@ function UsersPage() {
                     <td className="px-4 py-2 text-emerald-900">{u.name}</td>
                     <td className="px-4 py-2 text-emerald-700">{u.email}</td>
                     <td className="px-4 py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${u.role === 'admin' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-lime-100 text-lime-800 border-lime-300'}`}>{u.role}</span>
+                      <select
+                        className="border border-emerald-200 rounded-lg px-2 py-1 text-emerald-900 bg-white"
+                        value={u.role}
+                        onChange={(e) => updateRole(u.id, e.target.value)}
+                        disabled={savingId === u.id}
+                      >
+                        <option value="user">user</option>
+                        <option value="admin">admin</option>
+                      </select>
                     </td>
                     <td className="px-4 py-2 text-emerald-700">{new Date(u.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => resetPassword(u.id)}
+                        disabled={savingId === u.id}
+                        className="px-3 py-1 rounded-lg border border-emerald-300 text-emerald-900 hover:bg-emerald-50"
+                      >
+                        Reset Password
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
